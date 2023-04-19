@@ -138,6 +138,42 @@ template<size_t N, size_t ...S> struct make_index_sequence_impl : make_index_seq
 template<size_t ...S> struct make_index_sequence_impl <0, S...> { typedef index_sequence<S...> type; };
 template<size_t N> using make_index_sequence = typename make_index_sequence_impl<N>::type;
 
+typedef char yes;
+typedef char (&no)[2];
+
+struct anyx {
+  template <class T>
+  anyx(const T&);
+};
+
+no operator<<(const anyx&, const anyx&);
+no operator>>(const anyx&, const anyx&);
+
+template <class T>
+yes check(T const&);
+no check(no);
+
+template <typename StreamType, typename T>
+struct has_loading_support {
+  static StreamType& stream;
+  static T& x;
+  static const bool value = sizeof(check(stream >> x)) == sizeof(yes);
+};
+
+template <typename StreamType, typename T>
+struct has_saving_support {
+  static StreamType& stream;
+  static T& x;
+  static const bool value = sizeof(check(stream << x)) == sizeof(yes);
+};
+
+template <typename StreamType, typename T>
+struct has_stream_operators {
+  static const bool can_load = has_loading_support<StreamType, T>::value;
+  static const bool can_save = has_saving_support<StreamType, T>::value;
+  static const bool value = can_load && can_save;
+};
+
 template<class T>
 struct sfinae_true : public std::true_type{
   typedef T type;
@@ -1491,6 +1527,11 @@ public:
 
     /// Create a Dict instance
     static Svar dict(const std::map<Svar,Svar>& m={}){return Svar(m);}
+
+    /// Create from Json String
+    static Svar json(const std::string& str){
+        return svar["__builtin__"]["Json"].call("load",str);
+    }
 
     /// Undefined is the default value when Svar is not assigned a valid value
     /// It corrosponding to the c++ void and means no return
@@ -4744,6 +4785,8 @@ public:
         inst._registedLibs.set(pluginName,Svar());
         return true;
     }
+
+    std::set<std::string>& paths(){return _libraryFilePath;}
 protected:
     static bool fileExists(const std::string& filename)
     {
@@ -5072,5 +5115,7 @@ static SvarBuiltin SvarBuiltinInitializerinstance;
 #endif
 
 }
-
+namespace GSLAM {
+    using namespace sv;
+}
 #endif
